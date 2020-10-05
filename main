@@ -1,0 +1,72 @@
+//@version=2
+study("tarak", shorttitle="Tarak", overlay=true)
+
+//  
+//
+
+source = input(close)
+fastLength = input(12, minval=1, title="MACD fast moving average")
+slowLength=input(26,minval=1, title="MACD slow moving average")
+signalLength=input(9,minval=1, title="MACD signal line moving average")
+veryslowLength=input(200,minval=1, title="Very slow moving average")
+switch1=input(true, title="Enable Bar Color?")
+switch2=input(true, title="Enable Moving Averages?")
+switch3=input(true, title="Enable Background Color?")
+
+
+
+// Calculation
+fastMA = sma(source, fastLength)
+slowMA = sma(source, slowLength)
+veryslowMA = sma(source, veryslowLength)
+macd = fastMA - slowMA
+signal = sma(macd, signalLength)
+hist = macd - signal
+
+
+
+
+Periods = input(title="ATR Period", type=integer, defval=10)
+src = input(hl2, title="Source")
+Multiplier = input(title="ATR Multiplier", type=float, step=0.1, defval=3.0)
+showsignals = input(title="Show Buy/Sell Signals ?", type=bool, defval=true)
+highlighting = input(title="Highlighter On/Off ?", type=bool, defval=true)
+
+
+
+atr=  atr(Periods) 
+up=src-(Multiplier*atr)
+up1 = nz(up[1],up)
+up := close[1] > up1 ? max(up,up1) : up
+dn=src+(Multiplier*atr)
+dn1 = nz(dn[1], dn)
+dn := close[1] < dn1 ? min(dn, dn1) : dn
+
+
+trend = 1
+trend := nz(trend[1], trend)
+trend := trend == -1 and close > dn1 ? 1 : trend == 1 and close < up1 ? -1 : trend
+upPlot = plot(trend == 1 ? up : na, title="Up Trend", linewidth=2, color=green)
+buySignal = trend == 1 and trend[1] == -1
+dnPlot = plot(trend == 1 ? na : dn, title="Down Trend", linewidth=2, color=red)
+sellSignal = trend == -1 and trend[1] == 1
+
+
+plotshape(buySignal ? up : na, title="UpTrend Begins", location=location.absolute, style=shape.circle, size=size.tiny, color=green, transp=0)
+plotshape(buySignal and showsignals ? up : na, title="Buy", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=green, textcolor=white, transp=0)
+plotshape(sellSignal ? dn : na, title="DownTrend Begins", location=location.absolute, style=shape.circle, size=size.tiny, color=red, transp=0)
+plotshape(sellSignal and showsignals ? dn : na, title="Sell", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=red, textcolor=white, transp=0)
+
+// Colors
+MAtrendcolor = change(veryslowMA) > 0 ? green : red
+trendcolor = fastMA > slowMA and change(veryslowMA) > 0 and close > slowMA ? green : fastMA < slowMA and change(veryslowMA) < 0 and close < slowMA ? red : blue
+bartrendcolor = close > fastMA and close > slowMA and close > veryslowMA and change(slowMA) > 0 ? green : close < fastMA and close < slowMA and close < veryslowMA and change(slowMA) < 0 ? red : blue
+backgroundcolor = slowMA > veryslowMA and crossover(hist, 0) and macd > 0 and fastMA > slowMA and close[slowLength] > veryslowMA ? green : slowMA < veryslowMA and crossunder(hist, 0) and macd < 0 and fastMA < slowMA and close[slowLength] < veryslowMA ? red : na
+bgcolor(switch3?backgroundcolor:na,transp=80)
+barcolor(switch1?bartrendcolor:na)
+
+// Output
+F=plot(switch2?fastMA:na,color=trendcolor)
+S=plot(switch2?slowMA:na,color=trendcolor,linewidth=2)
+V=plot(switch2?veryslowMA:na,color=MAtrendcolor,linewidth=4)
+fill(F,V,color=gray)
